@@ -1,11 +1,11 @@
 #ifndef CAMERAH
 #define CAMERAH
 
-#include "ray.h"
+#include "../common/ray.h"
 
 class camera {
     public:
-        camera(vec3 lookfrom, vec3 lookat, vec3 vup, float vfov, float aspect) {
+        __host__ __device__ camera(vec3 lookfrom, vec3 lookat, vec3 vup, float vfov, float aspect) {
             // vfov is top to bottom in degrees
             vec3 u, v, w;
             float theta = vfov*M_PI/180;
@@ -19,7 +19,7 @@ class camera {
             horizontal = 2*half_width*u;
             vertical = 2*half_height*v;
         }
-        ray get_ray(float s, float t) {
+        __host__ __device__ ray get_ray(float s, float t) {
             return ray(origin,
                        lower_left_corner + s*horizontal + t*vertical - origin);
         }

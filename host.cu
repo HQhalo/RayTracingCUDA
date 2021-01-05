@@ -1,9 +1,11 @@
 #include <iostream>
-#include "sphere.h"
-#include "hitable_list.h"
-#include "float.h"
-#include "camera.h"
-#include "material.h"
+#include "shape/sphere.h"
+#include "shape/hitable_list.h"
+#include <float.h>
+#include "camera/camera.h"
+#include "material/metal.h"
+#include "material/dielectric.h"
+#include "material/lambertian.h"
 
 
 vec3 color(const ray& r, hitable *world, int depth) {
@@ -63,6 +65,9 @@ hitable *random_scene() {
 
     return new hitable_list(list,i);
 }
+
+
+
 int main() {
     int nx = 1000;
     int ny = 500;
