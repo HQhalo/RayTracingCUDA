@@ -7,25 +7,60 @@
 #include "material/dielectric.h"
 #include "material/lambertian.h"
 
+// vec3 color(const ray& r, hitable *world, int depth) {
+//     hit_record rec;
+//     if(depth <= 0) {
+//         return vec3(0,0,0);
+//     }
+//     if (world->hit(r, 0.001, MAXFLOAT, rec)) {
+//         ray scattered;
+//         vec3 attenuation;
+//         if (rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
+//             return attenuation*color(scattered, world, depth - 1);
+//         }
+//         return vec3(0,0,0);
+//     }
+//     vec3 unit_direction = unit_vector(r.direction());
+//     float t = 0.5*(unit_direction.y() + 1.0);
+//     return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
+// }
 
-vec3 color(const ray& r, hitable *world, int depth) {
+vec3 color(ray r, hitable *world, int depth) {
+    vec3 res = vec3(1, 1, 1);
+    
+    vec3* attenuationCache = new vec3[depth];
+    size_t attenuationCacheSize = 0;
+
     hit_record rec;
-    if(depth <= 0){
-        return vec3(0,0,0);
-    }
-    if (world->hit(r, 0.001, MAXFLOAT, rec)) {
+    while (depth > 0 && world->hit(r, 0.001, MAXFLOAT, rec)) {
         ray scattered;
         vec3 attenuation;
         if (rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
-            return attenuation*color(scattered, world, depth - 1);
+            attenuationCache[attenuationCacheSize++] = attenuation;
+            r = scattered;
+            --depth;
+        } else {
+            return vec3(0,0,0);
         }
-        return vec3(0,0,0);  
     }
+
+    if(depth <= 0){
+        return vec3(0,0,0);
+    }
+
     vec3 unit_direction = unit_vector(r.direction());
     float t = 0.5*(unit_direction.y() + 1.0);
-    return (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
-    
+    res = (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
+
+    for (int i = attenuationCacheSize - 1; i >= 0; --i) {
+        res *= attenuationCache[i];
+    }
+
+    delete[]attenuationCache;
+
+    return res;
 }
+
 hitable *random_scene() {
     int n = 100;
     int grid = (int)sqrt(n); 
@@ -66,8 +101,6 @@ hitable *random_scene() {
     return new hitable_list(list,i);
 }
 
-
-
 int main() {
     int nx = 1000;
     int ny = 500;
@@ -89,8 +122,7 @@ int main() {
                 float u = float(i + drand48()) / float(nx);
                 float v = float(j + drand48()) / float(ny);
                 ray r = cam.get_ray(u, v);
-                vec3 p = r.point_at_parameter(2.0);
-                col += color(r, world,max_depth);
+                col += color(r, world, max_depth);
             }
             col /= float(ns);
             col = vec3( sqrt(col[0]), sqrt(col[1]), sqrt(col[2]) );
@@ -101,5 +133,3 @@ int main() {
         }
     }
 }
-
-
