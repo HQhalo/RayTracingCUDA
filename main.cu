@@ -23,6 +23,43 @@
     }\
 }
 
+struct GpuTimer
+{
+    cudaEvent_t start;
+    cudaEvent_t stop;
+
+    GpuTimer()
+    {
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+    }
+
+    ~GpuTimer()
+    {
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
+    }
+
+    void Start()
+    {
+        cudaEventRecord(start, 0);
+        cudaEventSynchronize(start);
+    }
+
+    void Stop()
+    {
+        cudaEventRecord(stop, 0);
+    }
+
+    float Elapsed()
+    {
+        float elapsed;
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsed, start, stop);
+        return elapsed;
+    }
+};
+
 __device__  vec3 color(ray r, hitable **world, int depth, curandState *random_state) {
     vec3 res = vec3(1, 1, 1);
     
@@ -87,8 +124,7 @@ __global__ void createWorldKernel(hitable ** d_world, hitable ** d_list, camera 
         d_list[i++] = new sphere(vec3(0, 1, 0), 1.0, new dielectric(1.5));
         d_list[i++] = new sphere(vec3(-4, 1, 0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
         d_list[i++] = new sphere(vec3(4, 1, 0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
-
-        *d_world   = new hitable_list(d_list,n);
+        *d_world   = new hitable_list(d_list,i);
 
         vec3 lookfrom(13,2,3);
         vec3 lookat(0,0,0);
@@ -129,11 +165,11 @@ __global__ void render_init(int max_x, int max_y, curandState *rand_state) {
 
 
 int main(){
-    int nx = 1000;
-    int ny = 500;
+    int nx = 1200;
+    int ny = 800;
     int ns = 10;
     int max_depth = 50;
-    int no_object = 100;
+    int no_object = 104;
     vec3 *fbuffer;
     curandState *pixal_states;
 
@@ -150,6 +186,8 @@ int main(){
 
     dim3 blockSize(8,8);
     dim3 gridSize((nx -1) /blockSize.x + 1, (ny - 1)/ blockSize.y + 1);
+    GpuTimer timer; 
+    timer.Start();
 
     render_init<<<gridSize, blockSize >>>(nx, ny, pixal_states);
     cudaDeviceSynchronize();
@@ -162,7 +200,6 @@ int main(){
     renderKernel<<<gridSize,blockSize>>>(fbuffer, d_world, d_cam, nx, ny, ns, max_depth, pixal_states);
     cudaDeviceSynchronize();
     CHECK(cudaGetLastError());
-
 
     std::cout << "P3\n" << nx << " " << ny << "\n255\n";
     for (int j = ny-1; j >= 0; j--) {
