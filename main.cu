@@ -10,7 +10,8 @@
 #include "material/dielectric.h"
 #include "material/lambertian.h"
 #include <curand_kernel.h>
-
+#include <fstream>
+using namespace std;
 #define CHECK(call)\
 {\
     const cudaError_t error = call;\
@@ -184,7 +185,7 @@ int main(){
     CHECK(cudaMalloc((void **)&d_world, sizeof(hitable *)));
     CHECK(cudaMalloc((void **)&d_cam, sizeof(camera *)));
 
-    dim3 blockSize(8,8);
+    dim3 blockSize(32,32);
     dim3 gridSize((nx -1) /blockSize.x + 1, (ny - 1)/ blockSize.y + 1);
     GpuTimer timer; 
     timer.Start();
@@ -201,16 +202,21 @@ int main(){
     cudaDeviceSynchronize();
     CHECK(cudaGetLastError());
 
-    std::cout << "P3\n" << nx << " " << ny << "\n255\n";
+    timer.Stop();
+        printf("Time: %.3f ms\n", timer.Elapsed());
+    ofstream output;
+    output.open ("out");
+    output << "P3\n" << nx << " " << ny << "\n255\n";
     for (int j = ny-1; j >= 0; j--) {
         for (int i = 0; i < nx; i++) {
             vec3 col = fbuffer[j * nx + i];
             int ir = 255.99 * col.r();
             int ig = 255.99 * col.g();
             int ib = 255.99 * col.b();
-            std::cout << ir << " " << ig << " " << ib << "\n";
+            output << ir << " " << ig << " " << ib << "\n";
         }
     }
+    output.close();
     cudaFree(fbuffer);
 
     return 0;
