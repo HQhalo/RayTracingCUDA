@@ -6,9 +6,7 @@
 class dielectric : public material {
     public:
         __host__ __device__ dielectric(float ri) : ref_idx(ri) {}
-        __host__ __device__ virtual bool scatter(
-            const ray& r_in, const hit_record& rec, vec3& attenuation,
-            ray& scattered) const
+        __device__ virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation,ray& scattered, curandState *random_state) const
         {
             vec3 outward_normal;
             vec3 reflected = reflect(r_in.direction(), rec.normal);
@@ -35,7 +33,7 @@ class dielectric : public material {
             else {
                reflect_prob = 1.0;
             }
-            if (drand48() < reflect_prob) {
+            if ( curand_uniform(random_state) < reflect_prob) {
                scattered = ray(rec.p, reflected);
             }
             else {

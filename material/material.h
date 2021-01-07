@@ -3,19 +3,19 @@
 
 #include "../common/ray.h"
 #include "../shape/hitable.h"
+#include <curand_kernel.h>
+
 
 struct hit_record;
 class material  {
     public:
-        __host__ __device__ virtual bool scatter(
-            const ray& r_in, const hit_record& rec, vec3& attenuation,
-            ray& scattered) const = 0;
+        __device__ virtual bool scatter(const ray& r_in, const hit_record& rec, vec3& attenuation, ray& scattered, curandState *random_state) const = 0;
 };
 
-__host__ __device__ vec3 random_in_unit_sphere() {
+__device__ vec3 random_in_unit_sphere(curandState *random_state) {
     vec3 p;
     do {
-        p = 2.0*vec3(drand48(), drand48(), drand48()) - vec3(1,1,1);
+        p = 2.0* vec3(curand_uniform(random_state),curand_uniform(random_state),curand_uniform(random_state)) - vec3(1,1,1);
     } while (p.squared_length() >= 1.0);
     return p;
 }
