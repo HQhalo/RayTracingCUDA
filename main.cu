@@ -12,6 +12,7 @@
 #include <curand_kernel.h>
 #include <fstream>
 using namespace std;
+
 #define CHECK(call)\
 {\
     const cudaError_t error = call;\
@@ -71,7 +72,6 @@ __device__  vec3 color(ray r, hitable **world, int depth, curandState *random_st
         if (rec.mat_ptr->scatter(r, rec, attenuation, scattered, random_state)) {
             res *= attenuation;
             r = scattered;
-            --depth;
         } else {
             return vec3(0,0,0);
         }
@@ -161,7 +161,7 @@ __global__ void render_init(int max_x, int max_y, curandState *rand_state) {
    int j = threadIdx.y + blockIdx.y * blockDim.y;
    if((i >= max_x) || (j >= max_y)) return;
    int pixel_index = j*max_x + i;
-   curand_init(42, pixel_index, 0, &rand_state[pixel_index]);
+   curand_init(42 + pixel_index, 0, 0, &rand_state[pixel_index]);
 }
 
 
@@ -170,7 +170,7 @@ int main(){
     int ny = 800;
     int ns = 10;
     int max_depth = 50;
-    int no_object = 104;
+    int no_object = 6;
     vec3 *fbuffer;
     curandState *pixal_states;
 
@@ -217,7 +217,14 @@ int main(){
         }
     }
     output.close();
-    cudaFree(fbuffer);
+    
+
+    CHECK(cudaFree(fbuffer));
+    CHECK(cudaFree(pixal_states));
+    CHECK(cudaFree(d_world));
+    CHECK(cudaFree(d_list));
+    CHECK(cudaFree(d_cam));
+
 
     return 0;
 }
