@@ -139,16 +139,37 @@ __global__ void renderKernel(vec3 *fbuffer,hitable ** d_world, camera **cam, int
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
    
+    // if(i < nx && j < ny){
+    //     vec3 col(0, 0, 0);
+    //     int pixel_index = j*nx + i;
+
+    //     for (int s=0; s < ns; s++) {
+    //         float u = float(i + curand_uniform(&pixal_states[pixel_index])) / float(nx);
+    //         float v = float(j + curand_uniform(&pixal_states[pixel_index])) / float(ny);
+    //         ray r = (*cam)->get_ray(u, v);
+            
+    //         col += color(r, d_world, max_depth,&pixal_states[pixel_index]);
+    //     }
+    //     col /= float(ns);
+    //     col = vec3( sqrt(col[0]), sqrt(col[1]), sqrt(col[2]) );
+    //     fbuffer[j * nx + i] = col;
+    // }
+    
+    __shared__ curandState s_pixel_states[32][32];
+    if(i < nx && j < ny) {
+        s_pixel_states[threadIdx.y][threadIdx.x] = pixal_states[j*nx + i];
+    }
+    __syncthreads();
+
     if(i < nx && j < ny){
         vec3 col(0, 0, 0);
-        int pixel_index = j*nx + i;
 
         for (int s=0; s < ns; s++) {
-            float u = float(i + curand_uniform(&pixal_states[pixel_index])) / float(nx);
-            float v = float(j + curand_uniform(&pixal_states[pixel_index])) / float(ny);
+            float u = float(i + curand_uniform(&s_pixel_states[threadIdx.y][threadIdx.x])) / float(nx);
+            float v = float(j + curand_uniform(&s_pixel_states[threadIdx.y][threadIdx.x])) / float(ny);
             ray r = (*cam)->get_ray(u, v);
             
-            col += color(r, d_world, max_depth,&pixal_states[pixel_index]);
+            col += color(r, d_world, max_depth,&s_pixel_states[threadIdx.y][threadIdx.x]);
         }
         col /= float(ns);
         col = vec3( sqrt(col[0]), sqrt(col[1]), sqrt(col[2]) );
@@ -170,16 +191,16 @@ int main(){
     int ny = 800;
     int ns = 10;
     int max_depth = 50;
-    int no_object = 6;
+    int no_object = 104;
     vec3 *fbuffer;
     curandState *pixal_states;
-
+    
     CHECK(cudaMallocManaged(&fbuffer, nx * ny * sizeof(vec3)));
     
     
     hitable **d_world;
     hitable **d_list;
-    camera ** d_cam;
+    camera **d_cam;
     CHECK(cudaMalloc((void **)&pixal_states, nx*ny *sizeof(curandState)));
     CHECK(cudaMalloc((void **)&d_list, no_object*sizeof(hitable *)));
     CHECK(cudaMalloc((void **)&d_world, sizeof(hitable *)));
